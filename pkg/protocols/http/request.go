@@ -6,7 +6,10 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -61,6 +64,82 @@ var (
 	// ErrHttpEngineRequestDeadline is error occured when request deadline set by http request engine is exceeded
 	ErrHttpEngineRequestDeadline = errkit.New("http request engine deadline exceeded").SetKind(errkit.ErrKindDeadline).Build()
 )
+
+// fileWriter is a concurrent file based output writer.
+type fileWriter struct {
+	file *os.File
+}
+
+func newFileOutputWriter(file string) (*fileWriter, error) {
+	temp, err := os.Create(file)
+	if err != nil {
+		return nil, err
+	}
+	return &fileWriter{file: temp}, nil
+}
+
+func writeAndClose(filePath string, data string) error {
+
+	writer, err := newFileOutputWriter(filePath)
+
+	if err != nil {
+		return errors.Wrap(err, "could not create dump file")
+	}
+
+	_, err = writer.file.Write([]byte(data))
+	if err != nil {
+		return errors.Wrap(err, "could not write to output")
+	}
+	writer.file.Sync()
+	writer.file.Close()
+
+	return nil
+}
+
+var ErrEnvVarEmpty = errors.New("getenv: environment variable empty")
+
+func getenvStr(key string) (string, error) {
+	v := os.Getenv(key)
+	if v == "" {
+		return v, ErrEnvVarEmpty
+	}
+	return v, nil
+}
+
+func getenvInt(key string) (int, error) {
+	s, err := getenvStr(key)
+	if err != nil {
+		return 0, err
+	}
+	v, err := strconv.Atoi(s)
+	if err != nil {
+		return 0, err
+	}
+	return v, nil
+}
+
+var sensitiveWords = [...]string{"specified bucket", "secret", "pass"}
+
+func skipSizeCheck(content string) bool {
+	var lowerContent = strings.ToLower(content)
+
+	for _, s := range sensitiveWords {
+		if strings.Contains(lowerContent, s) {
+			return true
+		}
+	}
+	return false
+}
+
+const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+func RandStringBytes(n int) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letterBytes[rand.Intn(len(letterBytes))]
+	}
+	return string(b)
+}
 
 // Type returns the type of the protocol request
 func (request *Request) Type() templateTypes.ProtocolType {
@@ -906,6 +985,44 @@ func (request *Request) executeRequest(input *contextargs.Context, generatedRequ
 		}
 		// save response to projectfile
 		onceFunc()
+
+		disable_dump_temp := os.Getenv("DISABLE_DUMP")
+		disable_dump := false
+		if disable_dump_temp == "YES" {
+			disable_dump = true
+		}
+
+		if !disable_dump {
+			urlx, err := urlutil.Parse(formedURL)
+			file_name := fmt.Sprintf("%v_%v",  RandStringBytes(10), urlx.Scheme)
+
+			response_data := respChain.FullResponse().String()
+			response_data_len := len([]rune(response_data))
+			response_min_size, err := getenvInt("RESPONSE_MIN_SIZE")
+
+            if response_data_len > response_min_size || skipSizeCheck(response_data) {
+				request_dump_folder := os.Getenv("REQUEST_DUMP_FOLDER")
+
+				if len(request_dump_folder) > 0 {
+                    err = writeAndClose(filepath.Join(request_dump_folder, file_name), string(dumpedRequest))
+                    if nil != err {
+                        return errors.Wrap(err, "could not create request dump file")
+                    }
+                }
+
+				response_dump_folder := os.Getenv("RESPONSE_DUMP_FOLDER")
+
+			    if len(response_dump_folder) > 0 {
+                    err = writeAndClose(filepath.Join(response_dump_folder, file_name), response_data)
+                    if nil != err {
+                        gologger.Print().Msgf("%s", err)
+                        return errors.Wrap(err, "could not create response dump file")
+                    }
+                }
+			}
+
+		}
+
 		matchedURL := input.MetaInput.Input
 		if generatedRequest.rawRequest != nil {
 			if generatedRequest.rawRequest.FullURL != "" {
