@@ -1,6 +1,7 @@
 package workflow
 
 import (
+    "os"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/nuclei/v3/pkg/catalog/config"
 	"github.com/projectdiscovery/nuclei/v3/pkg/catalog/loader/filter"
@@ -63,6 +64,7 @@ func (w *workflowLoader) GetTemplatePaths(templatesList []string, noValidate boo
 	includedTemplates, errs := w.options.Catalog.GetTemplatesPath(templatesList)
 	for template, err := range errs {
 		gologger.Error().Msgf("Could not find template '%s': %s", template, err)
+		os.Exit(1)
 	}
 	templatesPathMap := w.pathFilter.Match(includedTemplates)
 
