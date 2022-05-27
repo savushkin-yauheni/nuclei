@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -38,6 +41,47 @@ import (
 )
 
 const defaultMaxWorkers = 150
+
+// fileWriter is a concurrent file based output writer.
+type fileWriter struct {
+	file *os.File
+}
+
+func newFileOutputWriter(file string) (*fileWriter, error) {
+	temp, err := os.Create(file)
+	if err != nil {
+		return nil, err
+	}
+	return &fileWriter{file: temp}, nil
+}
+
+func writeAndClose(filePath string, data string) error {
+
+	writer, err := newFileOutputWriter(filePath)
+
+	if err != nil {
+		return errors.Wrap(err, "could not create dump file")
+	}
+
+	_, err = writer.file.Write([]byte(data))
+	if err != nil {
+		return errors.Wrap(err, "could not write to output")
+	}
+	writer.file.Sync()
+	writer.file.Close()
+
+	return nil
+}
+
+const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+func RandStringBytes(n int) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letterBytes[rand.Intn(len(letterBytes))]
+	}
+	return string(b)
+}
 
 // Type returns the type of the protocol request
 func (request *Request) Type() templateTypes.ProtocolType {
@@ -509,6 +553,22 @@ func (request *Request) executeRequest(reqURL string, generatedRequest *generate
 	var dumpedResponse []redirectedResponse
 	var gotData []byte
 	// If the status code is HTTP 101, we should not proceed with reading body.
+
+	request_dump_folder := os.Getenv("REQUEST_DUMP_FOLDER")
+	response_dump_folder := os.Getenv("RESPONSE_DUMP_FOLDER")
+	disable_dump_temp := os.Getenv("DISABLE_DUMP")
+	disable_dump := false
+	if disable_dump_temp == "YES" {
+		disable_dump = true
+	}
+	file_name := RandStringBytes(10)
+	if !disable_dump {
+		err = writeAndClose(filepath.Join(request_dump_folder, file_name), string(dumpedRequest))
+		if nil != err {
+			return errors.Wrap(err, "could not create request dump file")
+		}
+	}
+
 	if resp.StatusCode != http.StatusSwitchingProtocols {
 		var bodyReader io.Reader
 		if request.MaxSize != 0 {
@@ -547,6 +607,15 @@ func (request *Request) executeRequest(reqURL string, generatedRequest *generate
 		if response.resp == nil {
 			continue // Skip nil responses
 		}
+
+		if !disable_dump {
+			err = writeAndClose(filepath.Join(response_dump_folder, file_name), string(response.fullResponse))
+			if nil != err {
+				gologger.Print().Msgf("%s", err)
+				return errors.Wrap(err, "could not create response dump file")
+			}
+		}
+
 		matchedURL := reqURL
 		if generatedRequest.rawRequest != nil && generatedRequest.rawRequest.FullURL != "" {
 			matchedURL = generatedRequest.rawRequest.FullURL
