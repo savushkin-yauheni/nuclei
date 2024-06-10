@@ -282,22 +282,22 @@ func (w *StandardWriter) Write(event *ResultEvent) error {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 
-	if !w.DisableStdout {
-		_, _ = os.Stdout.Write(data)
-		_, _ = os.Stdout.Write([]byte("\n"))
-	}
+// 	if !w.DisableStdout {
+// 		_, _ = os.Stdout.Write(data)
+// 		_, _ = os.Stdout.Write([]byte("\n"))
+// 	}
 
-	if w.outputFile != nil {
-		if !w.json {
-			data = decolorizerRegex.ReplaceAll(data, []byte(""))
-		}
-		if _, writeErr := w.outputFile.Write(data); writeErr != nil {
-			return errors.Wrap(err, "could not write to output")
-		}
-		if w.AddNewLinesOutputFile && w.json {
-			_, _ = w.outputFile.Write([]byte("\n"))
-		}
-	}
+// 	if w.outputFile != nil {
+// 		if !w.json {
+// 			data = decolorizerRegex.ReplaceAll(data, []byte(""))
+// 		}
+// 		if _, writeErr := w.outputFile.Write(data); writeErr != nil {
+// 			return errors.Wrap(err, "could not write to output")
+// 		}
+// 		if w.AddNewLinesOutputFile && w.json {
+// 			_, _ = w.outputFile.Write([]byte("\n"))
+// 		}
+// 	}
 	return nil
 }
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 	"sync/atomic"
-
+    "time"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/nuclei/v3/pkg/input/provider"
 	"github.com/projectdiscovery/nuclei/v3/pkg/protocols/common/contextargs"
@@ -136,7 +136,12 @@ func (e *Engine) executeTemplateWithTargets(ctx context.Context, template *templ
 					}
 					match = true
 				} else {
+				    gologger.Info().Msgf("start %s", template.ID)
+				    start := time.Now() // Record the start time
 					match, err = template.Executer.Execute(ctx)
+					duration := time.Since(start) // Calculate the duration
+					gologger.Info().Msgf("finish %s %s", template.ID, duration)
+
 				}
 			}
 			if err != nil {

@@ -3,7 +3,8 @@ package generic
 import (
 	"strings"
 	"sync/atomic"
-
+// 	"fmt"
+//     "runtime"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/nuclei/v3/pkg/output"
 	"github.com/projectdiscovery/nuclei/v3/pkg/protocols"
@@ -36,6 +37,19 @@ func (g *Generic) Compile() error {
 
 // ExecuteWithResults executes the template and returns results
 func (g *Generic) ExecuteWithResults(ctx *scan.ScanContext) error {
+
+
+//     pc, file, line, ok := runtime.Caller(1)
+//     if !ok {
+//         fmt.Println("No caller information")
+//
+//     }
+//
+//     // Get the caller function name
+//     callerFunc := runtime.FuncForPC(pc)
+//     callerName := callerFunc.Name()
+//
+//     fmt.Printf("Called from: %s, file: %s, line: %d\n", callerName, file, line)
 	dynamicValues := make(map[string]interface{})
 	if ctx.Input.HasArgs() {
 		ctx.Input.ForEach(func(key string, value interface{}) {

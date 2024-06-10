@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+// 	"fmt"
+//     "runtime"
 
 	"github.com/docker/go-units"
 	"github.com/mholt/archiver"
@@ -51,6 +53,20 @@ func (request *Request) ExecuteWithResults(input *contextargs.Context, metadata,
 	if err != nil {
 		return err
 	}
+// 	pc, file, line, ok := runtime.Caller(1)
+//     if !ok {
+//         fmt.Println("No caller information")
+//
+//     }
+//
+//     // Get the caller function name
+//     callerFunc := runtime.FuncForPC(pc)
+//     callerName := callerFunc.Name()
+//
+//     fmt.Printf("Called from: %s, file: %s, line: %d\n", callerName, file, line)
+//
+// 	gologger.Info().Msgf("input.MetaInput.Input: %s", input.MetaInput.Input)
+
 	err = request.getInputPaths(input.MetaInput.Input, func(filePath string) {
 		wg.Add()
 		func(filePath string) {
@@ -67,6 +83,7 @@ func (request *Request) ExecuteWithResults(input *contextargs.Context, metadata,
 						// every new file in the compressed multi-file archive counts 1
 						request.options.Progress.AddToTotal(1)
 						archiveFileName := filepath.Join(filePath, file.Name())
+						gologger.Info().Msgf("11111: %s", archiveFileName)
 						event, fileMatches, err := request.processReader(file.ReadCloser, archiveFileName, input, file.Size(), previous)
 						if err != nil {
 							if errors.Is(err, errEmptyResult) {
@@ -120,6 +137,8 @@ func (request *Request) ExecuteWithResults(input *contextargs.Context, metadata,
 					_ = tmpFileOut.Sync()
 					// rewind the file
 					_, _ = tmpFileOut.Seek(0, 0)
+					gologger.Info().Msgf("22222: %s", filePath)
+
 					event, fileMatches, err := request.processReader(tmpFileOut, filePath, input, fileStat.Size(), previous)
 					if err != nil {
 						if errors.Is(err, errEmptyResult) {
@@ -140,6 +159,7 @@ func (request *Request) ExecuteWithResults(input *contextargs.Context, metadata,
 			default:
 				// normal file - increments the counter by 1
 				request.options.Progress.AddToTotal(1)
+	            // gologger.Info().Msgf("44444: %s", filePath)
 				event, fileMatches, err := request.processFile(filePath, input, previous)
 				if err != nil {
 					if errors.Is(err, errEmptyResult) {

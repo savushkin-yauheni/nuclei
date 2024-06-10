@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
-
+    // "runtime"
 	"github.com/dop251/goja"
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/nuclei/v3/pkg/js/compiler"
@@ -94,6 +94,18 @@ func (e *TemplateExecuter) Requests() int {
 
 // Execute executes the protocol group and returns true or false if results were found.
 func (e *TemplateExecuter) Execute(ctx *scan.ScanContext) (bool, error) {
+
+//     pc, file, line, ok := runtime.Caller(1)
+//     if !ok {
+//         fmt.Println("No caller information")
+//
+//     }
+//
+//     // Get the caller function name
+//     callerFunc := runtime.FuncForPC(pc)
+//     callerName := callerFunc.Name()
+//
+//     fmt.Printf("Called from: %s, file: %s, line: %d\n", callerName, file, line)
 
 	// === when nuclei is built with -tags=stats ===
 	// Note: this is no-op (empty functions) when nuclei is built in normal or without -tags=stats
